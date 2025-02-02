@@ -1,5 +1,4 @@
-import React from 'react';
-import { DivideIcon as LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 
 interface DashboardCardProps {
   title: string;
@@ -8,12 +7,12 @@ interface DashboardCardProps {
   color: string;
 }
 
-const DashboardCard: React.FC<DashboardCardProps> = ({
+const DashboardCard = ({
   title,
   value,
   icon: Icon,
   color,
-}) => {
+}: DashboardCardProps) => {
   return (
     <div className="stat-card">
       <div className="flex items-center justify-between">

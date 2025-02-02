@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { customers } from '../data/mockData';
 import { Phone, Mail, Building, Plus, Eye, Pencil, Trash2, X } from 'lucide-react';
 
@@ -55,9 +55,6 @@ const Customers = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically make an API call to save the data
-    console.log('Form submitted:', formData);
-    
     if (isAddOpen) {
       console.log('Adding new customer:', formData);
       setIsAddOpen(false);
@@ -65,7 +62,6 @@ const Customers = () => {
       console.log('Updating customer:', selectedCustomer.id, formData);
       setIsEditOpen(false);
     }
-    
     setFormData(initialFormData);
   };
 
@@ -77,6 +73,10 @@ const Customers = () => {
     }
   };
 
+  const handleChange = (field: keyof CustomerFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const CustomerForm = () => (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -84,7 +84,7 @@ const Customers = () => {
         <input
           type="text"
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={e => handleChange('name', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -94,7 +94,7 @@ const Customers = () => {
         <input
           type="email"
           value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          onChange={e => handleChange('email', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -104,7 +104,7 @@ const Customers = () => {
         <input
           type="tel"
           value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          onChange={e => handleChange('phone', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -114,7 +114,7 @@ const Customers = () => {
         <input
           type="text"
           value={formData.company}
-          onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+          onChange={e => handleChange('company', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -123,7 +123,7 @@ const Customers = () => {
         <label className="block text-sm font-medium text-gray-700">Status</label>
         <select
           value={formData.status}
-          onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+          onChange={e => handleChange('status', e.target.value as CustomerFormData['status'])}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="active">Active</option>

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, query, where, orderBy, QueryConstraint } from 'firebase/firestore';
+import { getFirestore, collection, where, orderBy, QueryConstraint } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getAnalytics } from 'firebase/analytics';
 

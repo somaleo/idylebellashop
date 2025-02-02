@@ -10,6 +10,7 @@ import {
   DocumentData,
   QueryConstraint,
   Timestamp,
+  QueryDocumentSnapshot,
   where
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -26,7 +27,7 @@ export function useFirestore<T extends DocumentData>({
   queries = [],
   limit: queryLimit
 }: UseFirestoreOptions) {
-  const [data, setData] = useState<T[]>([]);
+  const [data, setData] = useState<(T & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
@@ -45,10 +46,10 @@ export function useFirestore<T extends DocumentData>({
         const q = query(collection(db, collectionName), ...constraints);
         const querySnapshot = await getDocs(q);
         
-        const documents = querySnapshot.docs.map(doc => ({
+        const documents = querySnapshot.docs.map((doc: QueryDocumentSnapshot<DocumentData>) => ({
           id: doc.id,
           ...doc.data()
-        })) as T[];
+        })) as (T & { id: string })[];
 
         setData(documents);
         setError(null);
@@ -79,7 +80,7 @@ export function useFirestore<T extends DocumentData>({
     }
   };
 
-  const update = async (id: string, data: Partial<T>) => {
+  const update = async (id: string, data: Partial<Omit<T, 'id'>>) => {
     if (!user) throw new Error('User must be authenticated');
 
     try {

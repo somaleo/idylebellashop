@@ -1,4 +1,4 @@
-import bcryptjs from 'bcryptjs';
+import CryptoJS from 'crypto-js';
 
 // Password validation
 export const validatePassword = (password: string): { isValid: boolean; message: string } => {
@@ -31,11 +31,11 @@ export const validateEmail = (email: string): { isValid: boolean; message: strin
 
 // Hash password
 export const hashPassword = async (password: string): Promise<string> => {
-  const salt = await bcryptjs.genSalt(10);
-  return bcryptjs.hash(password, salt);
+  return CryptoJS.SHA256(password).toString();
 };
 
 // Compare password
 export const comparePassword = async (password: string, hash: string): Promise<boolean> => {
-  return bcryptjs.compare(password, hash);
+  const hashedPassword = await hashPassword(password);
+  return hashedPassword === hash;
 };

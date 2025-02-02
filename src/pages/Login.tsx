@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,7 +7,6 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResetPassword, setShowResetPassword] = useState(false);
@@ -23,7 +22,7 @@ const Login = () => {
         await signUp(email, password);
         setError('Please check your email to verify your account');
       } else {
-        await signIn(email, password, rememberMe);
+        await signIn(email, password);
         navigate('/');
       }
     } catch (err) {
@@ -154,30 +153,6 @@ const Login = () => {
                   </button>
                 </div>
               </div>
-
-              {!isSignUp && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <input
-                      id="remember-me"
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                      Remember me
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowResetPassword(true)}
-                    className="text-sm text-blue-600 hover:text-blue-500"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-              )}
 
               <button
                 type="submit"

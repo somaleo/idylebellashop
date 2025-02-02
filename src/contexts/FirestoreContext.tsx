@@ -1,7 +1,6 @@
 import React, { createContext, useContext } from 'react';
-import { collection, query, where, orderBy, QueryConstraint } from 'firebase/firestore';
-import { db, COLLECTIONS } from '../lib/firebase';
-import { Customer, Product, Task } from '../types';
+import { QueryConstraint } from 'firebase/firestore';
+import { createQueryConstraints } from '../lib/firebase';
 
 interface FirestoreContextType {
   customersRef: () => QueryConstraint[];
@@ -13,21 +12,15 @@ const FirestoreContext = createContext<FirestoreContextType | undefined>(undefin
 
 export function FirestoreProvider({ children }: { children: React.ReactNode }) {
   const customersRef = () => {
-    return [
-      orderBy('createdAt', 'desc')
-    ];
+    return createQueryConstraints('createdAt', 'desc');
   };
 
   const productsRef = () => {
-    return [
-      orderBy('createdAt', 'desc')
-    ];
+    return createQueryConstraints('createdAt', 'desc');
   };
 
   const tasksRef = () => {
-    return [
-      orderBy('createdAt', 'desc')
-    ];
+    return createQueryConstraints('createdAt', 'desc');
   };
 
   return (

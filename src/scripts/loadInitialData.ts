@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, Timestamp, getDocs, query, limit } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC0Jr9IlurH1-AfStLVaDFMv81IJTh2Btw",
@@ -24,7 +24,8 @@ const createSampleData = () => ({
       company: 'Tech Corp',
       status: 'active',
       lastContact: '2024-03-10',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     },
     {
       name: 'Sarah Johnson',
@@ -33,7 +34,8 @@ const createSampleData = () => ({
       company: 'Design Co',
       status: 'active',
       lastContact: '2024-03-08',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     },
     {
       name: 'Michael Brown',
@@ -42,7 +44,8 @@ const createSampleData = () => ({
       company: 'Old Corp',
       status: 'inactive',
       lastContact: '2024-01-15',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     },
     {
       name: 'Emily Davis',
@@ -51,7 +54,8 @@ const createSampleData = () => ({
       company: 'Past LLC',
       status: 'inactive',
       lastContact: '2024-02-01',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     }
   ],
   products: [
@@ -61,7 +65,8 @@ const createSampleData = () => ({
       category: 'Software',
       stock: 50,
       description: 'Enterprise-grade software solution',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     },
     {
       name: 'Cloud Storage Plan',
@@ -69,7 +74,8 @@ const createSampleData = () => ({
       category: 'Services',
       stock: 100,
       description: '1TB cloud storage subscription',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     }
   ],
   tasks: [
@@ -80,7 +86,8 @@ const createSampleData = () => ({
       dueDate: '2024-03-15',
       assignedTo: 'John Doe',
       priority: 'high',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     },
     {
       title: 'Update product catalog',
@@ -89,7 +96,8 @@ const createSampleData = () => ({
       dueDate: '2024-03-20',
       assignedTo: 'Jane Smith',
       priority: 'medium',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     },
     {
       title: 'Client presentation',
@@ -98,44 +106,64 @@ const createSampleData = () => ({
       dueDate: '2024-03-12',
       assignedTo: 'Mike Johnson',
       priority: 'high',
-      createdAt: Timestamp.now()
+      createdAt: Timestamp.now(),
+      userId: 'demo'
     }
   ]
 });
+
+const checkIfDataExists = async (collectionName: string): Promise<boolean> => {
+  const q = query(collection(db, collectionName), limit(1));
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+};
+
+const loadCollectionData = async (collectionName: string, data: any[]) => {
+  console.log(`Loading ${collectionName}...`);
+  const dataExists = await checkIfDataExists(collectionName);
+  
+  if (dataExists) {
+    console.log(`${collectionName} collection already has data, skipping...`);
+    return;
+  }
+
+  const collectionRef = collection(db, collectionName);
+  
+  for (const item of data) {
+    try {
+      await addDoc(collectionRef, item);
+    } catch (error) {
+      console.error(`Error adding document to ${collectionName}:`, error);
+      throw error;
+    }
+  }
+  
+  console.log(`${collectionName} loaded successfully`);
+};
 
 const loadInitialData = async () => {
   try {
     console.log('Starting data load...');
     
     const sampleData = createSampleData();
-
-    // Load customers
-    console.log('Loading customers...');
-    for (const customer of sampleData.customers) {
-      await addDoc(collection(db, 'customers'), customer);
-    }
-    console.log('Customers loaded successfully');
-
-    // Load products
-    console.log('Loading products...');
-    for (const product of sampleData.products) {
-      await addDoc(collection(db, 'products'), product);
-    }
-    console.log('Products loaded successfully');
-
-    // Load tasks
-    console.log('Loading tasks...');
-    for (const task of sampleData.tasks) {
-      await addDoc(collection(db, 'tasks'), task);
-    }
-    console.log('Tasks loaded successfully');
+    
+    // Load all collections
+    await Promise.all([
+      loadCollectionData('customers', sampleData.customers),
+      loadCollectionData('products', sampleData.products),
+      loadCollectionData('tasks', sampleData.tasks)
+    ]);
 
     console.log('All data loaded successfully!');
   } catch (error) {
     console.error('Error loading data:', error);
+    throw error;
   } finally {
     process.exit(0);
   }
 };
 
-loadInitialData();
+loadInitialData().catch(error => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});

@@ -1,4 +1,3 @@
-import React from 'react';
 import { Users, Package, TrendingUp, Boxes } from 'lucide-react';
 import DashboardCard from '../components/DashboardCard';
 import PieChart from '../components/PieChart';
