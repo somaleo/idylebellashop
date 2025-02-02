@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, where, orderBy, QueryConstraint, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, where, QueryConstraint } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -30,8 +30,6 @@ export const COLLECTIONS = {
 export const getCollectionRef = (collectionName: string) => collection(db, collectionName);
 
 export const createQueryConstraints = (
-  orderByField: string = 'createdAt',
-  orderDirection: 'asc' | 'desc' = 'desc',
   whereConditions?: { field: string; operator: string; value: any }[]
 ): QueryConstraint[] => {
   const constraints: QueryConstraint[] = [

@@ -17,15 +17,21 @@ import { db, DEFAULT_USER_ID } from '../lib/firebase';
 interface UseFirestoreOptions {
   collectionName: string;
   queries?: QueryConstraint[];
-  limitTo?: number;
+  limit?: number;
+}
+
+interface BaseDocument {
+  id: string;
+  userId: string;
+  createdAt: Timestamp;
 }
 
 export function useFirestore<T extends DocumentData>({ 
   collectionName,
   queries = [],
-  limitTo
+  limit
 }: UseFirestoreOptions) {
-  const [data, setData] = useState<(T & { id: string })[]>([]);
+  const [data, setData] = useState<(T & BaseDocument)[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -37,21 +43,23 @@ export function useFirestore<T extends DocumentData>({
         setLoading(true);
         setError(null);
         
-        const q = query(
-          collection(db, collectionName),
-          where('userId', '==', DEFAULT_USER_ID)
-        );
+        const constraints: QueryConstraint[] = [
+          where('userId', '==', DEFAULT_USER_ID),
+          ...queries
+        ];
         
+        const q = query(collection(db, collectionName), ...constraints);
         const querySnapshot = await getDocs(q);
         
         if (!mounted) return;
 
-        const documents = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as (T & { id: string })[];
+        const documents = querySnapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as (T & BaseDocument)[];
 
-        setData(documents);
+        setData(limit ? documents.slice(0, limit) : documents);
       } catch (err) {
         console.error('Error fetching data:', err);
         if (mounted) {
@@ -69,18 +77,23 @@ export function useFirestore<T extends DocumentData>({
     return () => {
       mounted = false;
     };
-  }, [collectionName]);
+  }, [collectionName, limit, ...queries]);
 
-  const add = async (data: Omit<T, 'id'>) => {
+  const add = async (data: Omit<T, keyof BaseDocument>) => {
     try {
+      const timestamp = Timestamp.now();
       const docData = {
         ...data,
         userId: DEFAULT_USER_ID,
-        createdAt: Timestamp.now()
+        createdAt: timestamp
       };
-      
+
       const docRef = await addDoc(collection(db, collectionName), docData);
-      const newDoc = { id: docRef.id, ...docData } as T & { id: string };
+      
+      const newDoc = {
+        ...docData,
+        id: docRef.id
+      } as T & BaseDocument;
       
       setData(prev => [newDoc, ...prev]);
       return newDoc;
@@ -91,7 +104,7 @@ export function useFirestore<T extends DocumentData>({
     }
   };
 
-  const update = async (id: string, data: Partial<Omit<T, 'id'>>) => {
+  const update = async (id: string, data: Partial<Omit<T, keyof BaseDocument>>) => {
     try {
       const docRef = doc(db, collectionName, id);
       const updateData = {
