@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { tasks } from '../data/mockData';
 import { Calendar, User, Plus, Eye, Pencil, Trash2, X, LayoutGrid, List } from 'lucide-react';
 
@@ -20,71 +20,37 @@ const initialFormData: TaskFormData = {
   priority: 'medium'
 };
 
-const Tasks = () => {
-  const [selectedTask, setSelectedTask] = useState<typeof tasks[0] | null>(null);
-  const [isViewOpen, setIsViewOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [formData, setFormData] = useState<TaskFormData>(initialFormData);
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
-
-  const handleAdd = () => {
-    setFormData(initialFormData);
-    setIsAddOpen(true);
-  };
-
-  const handleView = (task: typeof tasks[0]) => {
-    setSelectedTask(task);
-    setIsViewOpen(true);
-  };
-
-  const handleEdit = (task: typeof tasks[0]) => {
-    setSelectedTask(task);
-    setFormData({
-      title: task.title,
-      description: task.description,
-      status: task.status,
-      dueDate: task.dueDate,
-      assignedTo: task.assignedTo,
-      priority: task.priority,
-    });
-    setIsEditOpen(true);
-  };
-
-  const handleDelete = (task: typeof tasks[0]) => {
-    setSelectedTask(task);
-    setIsDeleteConfirmOpen(true);
-  };
+// Memoized form component to prevent unnecessary re-renders
+const TaskForm = memo(({ 
+  onSubmit, 
+  onCancel, 
+  initialData = initialFormData,
+  isAdd = true 
+}: {
+  onSubmit: (data: TaskFormData) => void;
+  onCancel: () => void;
+  initialData?: TaskFormData;
+  isAdd?: boolean;
+}) => {
+  const [formData, setFormData] = useState<TaskFormData>(initialData);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isAddOpen) {
-      console.log('Adding new task:', formData);
-      setIsAddOpen(false);
-    } else if (isEditOpen && selectedTask) {
-      console.log('Updating task:', selectedTask.id, formData);
-      setIsEditOpen(false);
-    }
-    setFormData(initialFormData);
+    onSubmit(formData);
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedTask) {
-      console.log('Deleting task:', selectedTask.id);
-      setIsDeleteConfirmOpen(false);
-      setSelectedTask(null);
-    }
+  const handleChange = <K extends keyof TaskFormData>(field: K, value: TaskFormData[K]) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const TaskForm = () => (
+  return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700">Title</label>
         <input
           type="text"
           value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          onChange={(e) => handleChange('title', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -93,7 +59,7 @@ const Tasks = () => {
         <label className="block text-sm font-medium text-gray-700">Description</label>
         <textarea
           value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          onChange={(e) => handleChange('description', e.target.value)}
           rows={3}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
@@ -103,7 +69,7 @@ const Tasks = () => {
         <label className="block text-sm font-medium text-gray-700">Status</label>
         <select
           value={formData.status}
-          onChange={(e) => setFormData({ ...formData, status: e.target.value as TaskFormData['status'] })}
+          onChange={(e) => handleChange('status', e.target.value as TaskFormData['status'])}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="pending">Pending</option>
@@ -116,7 +82,7 @@ const Tasks = () => {
         <input
           type="date"
           value={formData.dueDate}
-          onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+          onChange={(e) => handleChange('dueDate', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -126,7 +92,7 @@ const Tasks = () => {
         <input
           type="text"
           value={formData.assignedTo}
-          onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+          onChange={(e) => handleChange('assignedTo', e.target.value)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
         />
@@ -135,7 +101,7 @@ const Tasks = () => {
         <label className="block text-sm font-medium text-gray-700">Priority</label>
         <select
           value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskFormData['priority'] })}
+          onChange={(e) => handleChange('priority', e.target.value as TaskFormData['priority'])}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
         >
           <option value="low">Low</option>
@@ -146,11 +112,7 @@ const Tasks = () => {
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
-          onClick={() => {
-            setIsAddOpen(false);
-            setIsEditOpen(false);
-            setFormData(initialFormData);
-          }}
+          onClick={onCancel}
           className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Cancel
@@ -159,71 +121,131 @@ const Tasks = () => {
           type="submit"
           className="btn-primary"
         >
-          {isAddOpen ? 'Add Task' : 'Save Changes'}
+          {isAdd ? 'Add Task' : 'Save Changes'}
         </button>
       </div>
     </form>
   );
+});
 
-  const TaskCard = ({ task }: { task: typeof tasks[0] }) => (
-    <div
-      className="p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100"
-    >
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-medium">{task.title}</h3>
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={() => handleView(task)}
-            className="btn-icon text-blue-600" 
-            title="View"
-          >
-            <Eye size={16} />
-          </button>
-          <button 
-            onClick={() => handleEdit(task)}
-            className="btn-icon text-amber-600" 
-            title="Edit"
-          >
-            <Pencil size={16} />
-          </button>
-          <button 
-            onClick={() => handleDelete(task)}
-            className="btn-icon text-red-600" 
-            title="Delete"
-          >
-            <Trash2 size={16} />
-          </button>
-        </div>
-      </div>
-      <p className="text-sm text-gray-600 mb-3">
-        {task.description}
-      </p>
-      <div className="flex items-center justify-between text-sm text-gray-600">
-        <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-gray-400" />
-          {task.dueDate}
-        </div>
-        <div className="flex items-center gap-2">
-          <User size={16} className="text-gray-400" />
-          {task.assignedTo}
-        </div>
-      </div>
-      <div className="mt-3">
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-          task.priority === 'high'
-            ? 'bg-red-100 text-red-800'
-            : task.priority === 'medium'
-            ? 'bg-amber-100 text-amber-800'
-            : 'bg-emerald-100 text-emerald-800'
-        }`}>
-          {task.priority}
-        </span>
+TaskForm.displayName = 'TaskForm';
+
+// Memoized task card component
+const TaskCard = memo(({ 
+  task,
+  onView,
+  onEdit,
+  onDelete 
+}: { 
+  task: typeof tasks[0];
+  onView: (task: typeof tasks[0]) => void;
+  onEdit: (task: typeof tasks[0]) => void;
+  onDelete: (task: typeof tasks[0]) => void;
+}) => (
+  <div className="p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100">
+    <div className="flex justify-between items-start mb-2">
+      <h3 className="font-medium">{task.title}</h3>
+      <div className="flex items-center gap-1">
+        <button 
+          onClick={() => onView(task)}
+          className="btn-icon text-blue-600" 
+          title="View"
+        >
+          <Eye size={16} />
+        </button>
+        <button 
+          onClick={() => onEdit(task)}
+          className="btn-icon text-amber-600" 
+          title="Edit"
+        >
+          <Pencil size={16} />
+        </button>
+        <button 
+          onClick={() => onDelete(task)}
+          className="btn-icon text-red-600" 
+          title="Delete"
+        >
+          <Trash2 size={16} />
+        </button>
       </div>
     </div>
-  );
+    <p className="text-sm text-gray-600 mb-3">
+      {task.description}
+    </p>
+    <div className="flex items-center justify-between text-sm text-gray-600">
+      <div className="flex items-center gap-2">
+        <Calendar size={16} className="text-gray-400" />
+        {task.dueDate}
+      </div>
+      <div className="flex items-center gap-2">
+        <User size={16} className="text-gray-400" />
+        {task.assignedTo}
+      </div>
+    </div>
+    <div className="mt-3">
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+        task.priority === 'high'
+          ? 'bg-red-100 text-red-800'
+          : task.priority === 'medium'
+          ? 'bg-amber-100 text-amber-800'
+          : 'bg-emerald-100 text-emerald-800'
+      }`}>
+        {task.priority}
+      </span>
+    </div>
+  </div>
+));
+
+TaskCard.displayName = 'TaskCard';
+
+const Tasks = () => {
+  const [selectedTask, setSelectedTask] = useState<typeof tasks[0] | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+
+  const handleAdd = () => {
+    setIsAddOpen(true);
+  };
+
+  const handleView = (task: typeof tasks[0]) => {
+    setSelectedTask(task);
+    setIsViewOpen(true);
+  };
+
+  const handleEdit = (task: typeof tasks[0]) => {
+    setSelectedTask(task);
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = (task: typeof tasks[0]) => {
+    setSelectedTask(task);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleSubmit = (formData: TaskFormData) => {
+    if (isAddOpen) {
+      console.log('Adding new task:', formData);
+      setIsAddOpen(false);
+    } else if (isEditOpen && selectedTask) {
+      console.log('Updating task:', selectedTask.id, formData);
+      setIsEditOpen(false);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedTask) {
+      console.log('Deleting task:', selectedTask.id);
+      setIsDeleteConfirmOpen(false);
+      setSelectedTask(null);
+    }
+  };
 
   return (
     <div className="p-8">
+      {/* Header section */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Tasks</h1>
@@ -261,6 +283,7 @@ const Tasks = () => {
         </button>
       </div>
 
+      {/* Main content */}
       {viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {['pending', 'in-progress', 'completed'].map((status) => (
@@ -277,7 +300,13 @@ const Tasks = () => {
                 {tasks
                   .filter((task) => task.status === status)
                   .map((task) => (
-                    <TaskCard key={task.id} task={task} />
+                    <TaskCard 
+                      key={task.id} 
+                      task={task}
+                      onView={handleView}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
                   ))}
               </div>
             </div>
@@ -377,6 +406,7 @@ const Tasks = () => {
         </div>
       )}
 
+      {/* Modals */}
       {/* View Modal */}
       {isViewOpen && selectedTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -432,14 +462,21 @@ const Tasks = () => {
                 onClick={() => {
                   setIsAddOpen(false);
                   setIsEditOpen(false);
-                  setFormData(initialFormData);
                 }}
                 className="btn-icon text-gray-500"
               >
                 <X size={20} />
               </button>
             </div>
-            <TaskForm />
+            <TaskForm
+              onSubmit={handleSubmit}
+              onCancel={() => {
+                setIsAddOpen(false);
+                setIsEditOpen(false);
+              }}
+              initialData={selectedTask || initialFormData}
+              isAdd={isAddOpen}
+            />
           </div>
         </div>
       )}

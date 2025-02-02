@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { customers } from '../data/mockData';
 import { Phone, Mail, Building, Plus, Eye, Pencil, Trash2, X } from 'lucide-react';
 
@@ -18,66 +18,30 @@ const initialFormData: CustomerFormData = {
   status: 'active'
 };
 
-const Customers = () => {
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof customers[0] | null>(null);
-  const [isViewOpen, setIsViewOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [formData, setFormData] = useState<CustomerFormData>(initialFormData);
-
-  const handleAdd = () => {
-    setFormData(initialFormData);
-    setIsAddOpen(true);
-  };
-
-  const handleView = (customer: typeof customers[0]) => {
-    setSelectedCustomer(customer);
-    setIsViewOpen(true);
-  };
-
-  const handleEdit = (customer: typeof customers[0]) => {
-    setSelectedCustomer(customer);
-    setFormData({
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
-      company: customer.company,
-      status: customer.status,
-    });
-    setIsEditOpen(true);
-  };
-
-  const handleDelete = (customer: typeof customers[0]) => {
-    setSelectedCustomer(customer);
-    setIsDeleteConfirmOpen(true);
-  };
+// Memoized form component
+const CustomerForm = memo(({
+  onSubmit,
+  onCancel,
+  initialData = initialFormData,
+  isAdd = true
+}: {
+  onSubmit: (data: CustomerFormData) => void;
+  onCancel: () => void;
+  initialData?: CustomerFormData;
+  isAdd?: boolean;
+}) => {
+  const [formData, setFormData] = useState<CustomerFormData>(initialData);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isAddOpen) {
-      console.log('Adding new customer:', formData);
-      setIsAddOpen(false);
-    } else if (isEditOpen && selectedCustomer) {
-      console.log('Updating customer:', selectedCustomer.id, formData);
-      setIsEditOpen(false);
-    }
-    setFormData(initialFormData);
+    onSubmit(formData);
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedCustomer) {
-      console.log('Deleting customer:', selectedCustomer.id);
-      setIsDeleteConfirmOpen(false);
-      setSelectedCustomer(null);
-    }
-  };
-
-  const handleChange = (field: keyof CustomerFormData, value: string) => {
+  const handleChange = <K extends keyof CustomerFormData>(field: K, value: CustomerFormData[K]) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const CustomerForm = () => (
+  return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-gray-700">Name</label>
@@ -133,11 +97,7 @@ const Customers = () => {
       <div className="flex justify-end space-x-3 pt-4">
         <button
           type="button"
-          onClick={() => {
-            setIsAddOpen(false);
-            setIsEditOpen(false);
-            setFormData(initialFormData);
-          }}
+          onClick={onCancel}
           className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
         >
           Cancel
@@ -146,11 +106,132 @@ const Customers = () => {
           type="submit"
           className="btn-primary"
         >
-          {isAddOpen ? 'Add Customer' : 'Save Changes'}
+          {isAdd ? 'Add Customer' : 'Save Changes'}
         </button>
       </div>
     </form>
   );
+});
+
+CustomerForm.displayName = 'CustomerForm';
+
+// Memoized customer row component
+const CustomerRow = memo(({
+  customer,
+  onView,
+  onEdit,
+  onDelete
+}: {
+  customer: typeof customers[0];
+  onView: (customer: typeof customers[0]) => void;
+  onEdit: (customer: typeof customers[0]) => void;
+  onDelete: (customer: typeof customers[0]) => void;
+}) => (
+  <tr className="hover:bg-gray-50 transition-colors">
+    <td className="px-6 py-4">
+      <div className="font-medium">{customer.name}</div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="flex flex-col space-y-1">
+        <div className="flex items-center text-sm text-gray-600">
+          <Mail size={16} className="mr-2 text-gray-400" />
+          {customer.email}
+        </div>
+        <div className="flex items-center text-sm text-gray-600">
+          <Phone size={16} className="mr-2 text-gray-400" />
+          {customer.phone}
+        </div>
+      </div>
+    </td>
+    <td className="px-6 py-4">
+      <div className="flex items-center text-sm">
+        <Building size={16} className="mr-2 text-gray-400" />
+        {customer.company}
+      </div>
+    </td>
+    <td className="px-6 py-4">
+      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
+        customer.status === 'active'
+          ? 'bg-emerald-100 text-emerald-800'
+          : 'bg-gray-100 text-gray-800'
+      }`}>
+        {customer.status}
+      </span>
+    </td>
+    <td className="px-6 py-4 text-sm text-gray-600">
+      {customer.lastContact}
+    </td>
+    <td className="px-6 py-4 text-right space-x-2">
+      <button 
+        onClick={() => onView(customer)}
+        className="btn-icon text-blue-600 hover:bg-blue-50" 
+        title="View"
+      >
+        <Eye size={18} />
+      </button>
+      <button 
+        onClick={() => onEdit(customer)}
+        className="btn-icon text-amber-600 hover:bg-amber-50" 
+        title="Edit"
+      >
+        <Pencil size={18} />
+      </button>
+      <button 
+        onClick={() => onDelete(customer)}
+        className="btn-icon text-red-600 hover:bg-red-50" 
+        title="Delete"
+      >
+        <Trash2 size={18} />
+      </button>
+    </td>
+  </tr>
+));
+
+CustomerRow.displayName = 'CustomerRow';
+
+const Customers = () => {
+  const [selectedCustomer, setSelectedCustomer] = useState<typeof customers[0] | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  const handleAdd = () => {
+    setIsAddOpen(true);
+  };
+
+  const handleView = (customer: typeof customers[0]) => {
+    setSelectedCustomer(customer);
+    setIsViewOpen(true);
+  };
+
+  const handleEdit = (customer: typeof customers[0]) => {
+    setSelectedCustomer(customer);
+    setIsEditOpen(true);
+  };
+
+  const handleDelete = (customer: typeof customers[0]) => {
+    setSelectedCustomer(customer);
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleSubmit = (formData: CustomerFormData) => {
+    if (isAddOpen) {
+      console.log('Adding new customer:', formData);
+      setIsAddOpen(false);
+    } else if (isEditOpen && selectedCustomer) {
+      console.log('Updating customer:', selectedCustomer.id, formData);
+      setIsEditOpen(false);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedCustomer) {
+      console.log('Deleting customer:', selectedCustomer.id);
+      setIsDeleteConfirmOpen(false);
+      setSelectedCustomer(null);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -192,64 +273,13 @@ const Customers = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {customers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-medium">{customer.name}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col space-y-1">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Mail size={16} className="mr-2 text-gray-400" />
-                        {customer.email}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Phone size={16} className="mr-2 text-gray-400" />
-                        {customer.phone}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center text-sm">
-                      <Building size={16} className="mr-2 text-gray-400" />
-                      {customer.company}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
-                      customer.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {customer.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {customer.lastContact}
-                  </td>
-                  <td className="px-6 py-4 text-right space-x-2">
-                    <button 
-                      onClick={() => handleView(customer)}
-                      className="btn-icon text-blue-600 hover:bg-blue-50" 
-                      title="View"
-                    >
-                      <Eye size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleEdit(customer)}
-                      className="btn-icon text-amber-600 hover:bg-amber-50" 
-                      title="Edit"
-                    >
-                      <Pencil size={18} />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(customer)}
-                      className="btn-icon text-red-600 hover:bg-red-50" 
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
+                <CustomerRow
+                  key={customer.id}
+                  customer={customer}
+                  onView={handleView}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
               ))}
             </tbody>
           </table>
@@ -311,14 +341,21 @@ const Customers = () => {
                 onClick={() => {
                   setIsAddOpen(false);
                   setIsEditOpen(false);
-                  setFormData(initialFormData);
                 }}
                 className="btn-icon text-gray-500"
               >
                 <X size={20} />
               </button>
             </div>
-            <CustomerForm />
+            <CustomerForm
+              onSubmit={handleSubmit}
+              onCancel={() => {
+                setIsAddOpen(false);
+                setIsEditOpen(false);
+              }}
+              initialData={selectedCustomer || initialFormData}
+              isAdd={isAddOpen}
+            />
           </div>
         </div>
       )}
