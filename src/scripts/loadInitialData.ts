@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, Timestamp } from 'firebase/firestore';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC0Jr9IlurH1-AfStLVaDFMv81IJTh2Btw",
@@ -15,10 +14,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app);
 
-// Sample data with userId field
-const createSampleData = (userId: string) => ({
+const createSampleData = () => ({
   customers: [
     {
       name: 'John Smith',
@@ -27,8 +24,7 @@ const createSampleData = (userId: string) => ({
       company: 'Tech Corp',
       status: 'active',
       lastContact: '2024-03-10',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     },
     {
       name: 'Sarah Johnson',
@@ -37,8 +33,7 @@ const createSampleData = (userId: string) => ({
       company: 'Design Co',
       status: 'active',
       lastContact: '2024-03-08',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     },
     {
       name: 'Michael Brown',
@@ -47,8 +42,7 @@ const createSampleData = (userId: string) => ({
       company: 'Old Corp',
       status: 'inactive',
       lastContact: '2024-01-15',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     },
     {
       name: 'Emily Davis',
@@ -57,8 +51,7 @@ const createSampleData = (userId: string) => ({
       company: 'Past LLC',
       status: 'inactive',
       lastContact: '2024-02-01',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     }
   ],
   products: [
@@ -68,8 +61,7 @@ const createSampleData = (userId: string) => ({
       category: 'Software',
       stock: 50,
       description: 'Enterprise-grade software solution',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     },
     {
       name: 'Cloud Storage Plan',
@@ -77,8 +69,7 @@ const createSampleData = (userId: string) => ({
       category: 'Services',
       stock: 100,
       description: '1TB cloud storage subscription',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     }
   ],
   tasks: [
@@ -89,8 +80,7 @@ const createSampleData = (userId: string) => ({
       dueDate: '2024-03-15',
       assignedTo: 'John Doe',
       priority: 'high',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     },
     {
       title: 'Update product catalog',
@@ -99,8 +89,7 @@ const createSampleData = (userId: string) => ({
       dueDate: '2024-03-20',
       assignedTo: 'Jane Smith',
       priority: 'medium',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     },
     {
       title: 'Client presentation',
@@ -109,8 +98,7 @@ const createSampleData = (userId: string) => ({
       dueDate: '2024-03-12',
       assignedTo: 'Mike Johnson',
       priority: 'high',
-      createdAt: Timestamp.now(),
-      userId
+      createdAt: Timestamp.now()
     }
   ]
 });
@@ -118,12 +106,8 @@ const createSampleData = (userId: string) => ({
 const loadInitialData = async () => {
   try {
     console.log('Starting data load...');
-
-    // Sign in with test user credentials
-    const userCredential = await signInWithEmailAndPassword(auth, 'test@example.com', 'password123');
-    const userId = userCredential.user.uid;
     
-    const sampleData = createSampleData(userId);
+    const sampleData = createSampleData();
 
     // Load customers
     console.log('Loading customers...');
@@ -150,7 +134,6 @@ const loadInitialData = async () => {
   } catch (error) {
     console.error('Error loading data:', error);
   } finally {
-    await auth.signOut();
     process.exit(0);
   }
 };
