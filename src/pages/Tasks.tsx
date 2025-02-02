@@ -1,5 +1,7 @@
 import React, { useState, memo } from 'react';
-import { tasks } from '../data/mockData';
+import { useFirestore } from '../hooks/useFirestore';
+import { COLLECTIONS } from '../lib/firebase';
+import { Task } from '../types';
 import { Calendar, User, Plus, Eye, Pencil, Trash2, X, LayoutGrid, List } from 'lucide-react';
 
 interface TaskFormData {
@@ -15,17 +17,17 @@ const initialFormData: TaskFormData = {
   title: '',
   description: '',
   status: 'pending',
-  dueDate: '',
+  dueDate: new Date().toISOString().split('T')[0],
   assignedTo: '',
   priority: 'medium'
 };
 
-// Memoized form component to prevent unnecessary re-renders
-const TaskForm = memo(({ 
-  onSubmit, 
-  onCancel, 
+// Memoized form component
+const TaskForm = memo(({
+  onSubmit,
+  onCancel,
   initialData = initialFormData,
-  isAdd = true 
+  isAdd = true
 }: {
   onSubmit: (data: TaskFormData) => void;
   onCancel: () => void;
@@ -131,67 +133,74 @@ const TaskForm = memo(({
 TaskForm.displayName = 'TaskForm';
 
 // Memoized task card component
-const TaskCard = memo(({ 
+const TaskCard = memo(({
   task,
   onView,
   onEdit,
-  onDelete 
-}: { 
-  task: typeof tasks[0];
-  onView: (task: typeof tasks[0]) => void;
-  onEdit: (task: typeof tasks[0]) => void;
-  onDelete: (task: typeof tasks[0]) => void;
+  onDelete
+}: {
+  task: Task;
+  onView: (task: Task) => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) => (
-  <div className="p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-100">
-    <div className="flex justify-between items-start mb-2">
-      <h3 className="font-medium">{task.title}</h3>
+  <div className="card p-6 flex flex-col">
+    <div className="flex items-center justify-between mb-4">
+      <div className={`p-3 rounded-xl ${
+        task.priority === 'high'
+          ? 'bg-red-100 text-red-600'
+          : task.priority === 'medium'
+          ? 'bg-amber-100 text-amber-600'
+          : 'bg-emerald-100 text-emerald-600'
+      }`}>
+        <Calendar size={24} />
+      </div>
       <div className="flex items-center gap-1">
         <button 
           onClick={() => onView(task)}
-          className="btn-icon text-blue-600" 
+          className="btn-icon text-blue-600 hover:bg-blue-50" 
           title="View"
         >
-          <Eye size={16} />
+          <Eye size={18} />
         </button>
         <button 
           onClick={() => onEdit(task)}
-          className="btn-icon text-amber-600" 
+          className="btn-icon text-amber-600 hover:bg-amber-50" 
           title="Edit"
         >
-          <Pencil size={16} />
+          <Pencil size={18} />
         </button>
         <button 
           onClick={() => onDelete(task)}
-          className="btn-icon text-red-600" 
+          className="btn-icon text-red-600 hover:bg-red-50" 
           title="Delete"
         >
-          <Trash2 size={16} />
+          <Trash2 size={18} />
         </button>
       </div>
     </div>
-    <p className="text-sm text-gray-600 mb-3">
-      {task.description}
-    </p>
-    <div className="flex items-center justify-between text-sm text-gray-600">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-lg font-semibold">{task.title}</h3>
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+        task.status === 'completed'
+          ? 'bg-emerald-100 text-emerald-800'
+          : task.status === 'in-progress'
+          ? 'bg-blue-100 text-blue-800'
+          : 'bg-amber-100 text-amber-800'
+      }`}>
+        {task.status.replace('-', ' ')}
+      </span>
+    </div>
+    <p className="text-gray-600 text-sm mb-4 flex-grow">{task.description}</p>
+    <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
         <Calendar size={16} className="text-gray-400" />
         {task.dueDate}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 text-sm text-gray-600">
         <User size={16} className="text-gray-400" />
         {task.assignedTo}
       </div>
-    </div>
-    <div className="mt-3">
-      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-        task.priority === 'high'
-          ? 'bg-red-100 text-red-800'
-          : task.priority === 'medium'
-          ? 'bg-amber-100 text-amber-800'
-          : 'bg-emerald-100 text-emerald-800'
-      }`}>
-        {task.priority}
-      </span>
     </div>
   </div>
 ));
@@ -199,53 +208,91 @@ const TaskCard = memo(({
 TaskCard.displayName = 'TaskCard';
 
 const Tasks = () => {
-  const [selectedTask, setSelectedTask] = useState<typeof tasks[0] | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
+  const { data: tasks, loading, error, add, update, remove } = useFirestore<Task>({
+    collectionName: COLLECTIONS.TASKS
+  });
+
   const handleAdd = () => {
     setIsAddOpen(true);
   };
 
-  const handleView = (task: typeof tasks[0]) => {
+  const handleView = (task: Task) => {
     setSelectedTask(task);
     setIsViewOpen(true);
   };
 
-  const handleEdit = (task: typeof tasks[0]) => {
+  const handleEdit = (task: Task) => {
     setSelectedTask(task);
     setIsEditOpen(true);
   };
 
-  const handleDelete = (task: typeof tasks[0]) => {
+  const handleDelete = (task: Task) => {
     setSelectedTask(task);
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleSubmit = (formData: TaskFormData) => {
-    if (isAddOpen) {
-      console.log('Adding new task:', formData);
-      setIsAddOpen(false);
-    } else if (isEditOpen && selectedTask) {
-      console.log('Updating task:', selectedTask.id, formData);
-      setIsEditOpen(false);
+  const handleSubmit = async (formData: TaskFormData) => {
+    try {
+      if (isAddOpen) {
+        await add(formData);
+        setIsAddOpen(false);
+      } else if (isEditOpen && selectedTask) {
+        await update(selectedTask.id, formData);
+        setIsEditOpen(false);
+      }
+      setSelectedTask(null);
+    } catch (error) {
+      console.error('Error handling task:', error);
+      // Handle error appropriately
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedTask) {
-      console.log('Deleting task:', selectedTask.id);
-      setIsDeleteConfirmOpen(false);
-      setSelectedTask(null);
+      try {
+        await remove(selectedTask.id);
+        setIsDeleteConfirmOpen(false);
+        setSelectedTask(null);
+      } catch (error) {
+        console.error('Error deleting task:', error);
+        // Handle error appropriately
+      }
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+          Error loading tasks: {error.message}
+        </div>
+      </div>
+    );
+  }
+
+  const tasksByStatus = {
+    pending: tasks.filter(task => task.status === 'pending'),
+    'in-progress': tasks.filter(task => task.status === 'in-progress'),
+    completed: tasks.filter(task => task.status === 'completed')
   };
 
   return (
     <div className="p-8">
-      {/* Header section */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold">Tasks</h1>
@@ -283,10 +330,9 @@ const Tasks = () => {
         </button>
       </div>
 
-      {/* Main content */}
       {viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {['pending', 'in-progress', 'completed'].map((status) => (
+          {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
             <div key={status} className="card p-6">
               <h2 className="text-xl font-semibold mb-6 capitalize flex items-center gap-2">
                 <span className={`w-3 h-3 rounded-full ${
@@ -295,19 +341,20 @@ const Tasks = () => {
                   'bg-emerald-500'
                 }`} />
                 {status.replace('-', ' ')}
+                <span className="ml-2 text-sm text-gray-500">
+                  ({statusTasks.length})
+                </span>
               </h2>
               <div className="space-y-4">
-                {tasks
-                  .filter((task) => task.status === status)
-                  .map((task) => (
-                    <TaskCard 
-                      key={task.id} 
-                      task={task}
-                      onView={handleView}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                    />
-                  ))}
+                {statusTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onView={handleView}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                  />
+                ))}
               </div>
             </div>
           ))}
@@ -406,50 +453,6 @@ const Tasks = () => {
         </div>
       )}
 
-      {/* Modals */}
-      {/* View Modal */}
-      {isViewOpen && selectedTask && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Task Details</h2>
-              <button
-                onClick={() => setIsViewOpen(false)}
-                className="btn-icon text-gray-500"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Title</label>
-                <p className="text-gray-900">{selectedTask.title}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Description</label>
-                <p className="text-gray-900">{selectedTask.description}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Status</label>
-                <p className="text-gray-900 capitalize">{selectedTask.status.replace('-', ' ')}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Due Date</label>
-                <p className="text-gray-900">{selectedTask.dueDate}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Assigned To</label>
-                <p className="text-gray-900">{selectedTask.assignedTo}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Priority</label>
-                <p className="text-gray-900 capitalize">{selectedTask.priority}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add/Edit Modal */}
       {(isAddOpen || isEditOpen) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -477,6 +480,49 @@ const Tasks = () => {
               initialData={selectedTask || initialFormData}
               isAdd={isAddOpen}
             />
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {isViewOpen && selectedTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Task Details</h2>
+              <button
+                onClick={() => setIsViewOpen(false)}
+                className="btn-icon text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Title</label>
+                <p className="text-gray-900">{selectedTask.title}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <p className="text-gray-900">{selectedTask.description}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Status</label>
+                <p className="text-gray-900 capitalize">{selectedTask.status.replace('-', ' ')}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Due Date</label>
+                <p className="text-gray-900">{selectedTask.dueDate}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Assigned To</label>
+                <p className="text-gray-900">{selectedTask.assignedTo}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Priority</label>
+                <p className="text-gray-900 capitalize">{selectedTask.priority}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

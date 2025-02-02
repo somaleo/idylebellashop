@@ -1,14 +1,14 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp, getDocs, query, limit } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, Timestamp, getDocs, query, where } from 'firebase/firestore';
+import { DEFAULT_USER_ID } from '../lib/firebase';
 
 const firebaseConfig = {
   apiKey: "AIzaSyC0Jr9IlurH1-AfStLVaDFMv81IJTh2Btw",
   authDomain: "crmboltapp.firebaseapp.com",
   projectId: "crmboltapp",
-  storageBucket: "crmboltapp.firebasestorage.app",
+  storageBucket: "crmboltapp.appspot.com",
   messagingSenderId: "596047524575",
-  appId: "1:596047524575:web:6830f4b95a42c13523ef6a",
-  measurementId: "G-FLW4MFYJGG"
+  appId: "1:596047524575:web:6830f4b95a42c13523ef6a"
 };
 
 // Initialize Firebase
@@ -25,7 +25,7 @@ const createSampleData = () => ({
       status: 'active',
       lastContact: '2024-03-10',
       createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
     },
     {
       name: 'Sarah Johnson',
@@ -35,27 +35,7 @@ const createSampleData = () => ({
       status: 'active',
       lastContact: '2024-03-08',
       createdAt: Timestamp.now(),
-      userId: 'demo'
-    },
-    {
-      name: 'Michael Brown',
-      email: 'michael@example.com',
-      phone: '(555) 456-7890',
-      company: 'Old Corp',
-      status: 'inactive',
-      lastContact: '2024-01-15',
-      createdAt: Timestamp.now(),
-      userId: 'demo'
-    },
-    {
-      name: 'Emily Davis',
-      email: 'emily@example.com',
-      phone: '(555) 234-5678',
-      company: 'Past LLC',
-      status: 'inactive',
-      lastContact: '2024-02-01',
-      createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
     }
   ],
   products: [
@@ -66,7 +46,7 @@ const createSampleData = () => ({
       stock: 50,
       description: 'Enterprise-grade software solution',
       createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
     },
     {
       name: 'Cloud Storage Plan',
@@ -75,45 +55,68 @@ const createSampleData = () => ({
       stock: 100,
       description: '1TB cloud storage subscription',
       createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
     }
   ],
   tasks: [
     {
       title: 'Follow up with Tech Corp',
-      description: 'Schedule demo for new software',
+      description: 'Schedule demo for new software package and discuss implementation timeline',
       status: 'pending',
       dueDate: '2024-03-15',
       assignedTo: 'John Doe',
       priority: 'high',
       createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
     },
     {
       title: 'Update product catalog',
-      description: 'Add new cloud services',
+      description: 'Add new cloud services and update pricing for Q2',
       status: 'in-progress',
       dueDate: '2024-03-20',
       assignedTo: 'Jane Smith',
       priority: 'medium',
       createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
     },
     {
       title: 'Client presentation',
-      description: 'Prepare slides for the quarterly review',
+      description: 'Prepare slides for the quarterly review meeting with Design Co',
       status: 'completed',
       dueDate: '2024-03-12',
       assignedTo: 'Mike Johnson',
       priority: 'high',
       createdAt: Timestamp.now(),
-      userId: 'demo'
+      userId: DEFAULT_USER_ID
+    },
+    {
+      title: 'Security audit',
+      description: 'Conduct monthly security review of cloud infrastructure',
+      status: 'pending',
+      dueDate: '2024-03-25',
+      assignedTo: 'Sarah Wilson',
+      priority: 'high',
+      createdAt: Timestamp.now(),
+      userId: DEFAULT_USER_ID
+    },
+    {
+      title: 'Team training',
+      description: 'Organize training session for new project management tools',
+      status: 'in-progress',
+      dueDate: '2024-03-18',
+      assignedTo: 'David Brown',
+      priority: 'medium',
+      createdAt: Timestamp.now(),
+      userId: DEFAULT_USER_ID
     }
   ]
 });
 
 const checkIfDataExists = async (collectionName: string): Promise<boolean> => {
-  const q = query(collection(db, collectionName), limit(1));
+  const q = query(
+    collection(db, collectionName),
+    where('userId', '==', DEFAULT_USER_ID)
+  );
   const snapshot = await getDocs(q);
   return !snapshot.empty;
 };
@@ -155,15 +158,11 @@ const loadInitialData = async () => {
     ]);
 
     console.log('All data loaded successfully!');
+    process.exit(0);
   } catch (error) {
     console.error('Error loading data:', error);
-    throw error;
-  } finally {
-    process.exit(0);
+    process.exit(1);
   }
 };
 
-loadInitialData().catch(error => {
-  console.error('Fatal error:', error);
-  process.exit(1);
-});
+loadInitialData();

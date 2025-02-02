@@ -1,9 +1,31 @@
 import { Users, Package, TrendingUp, Boxes } from 'lucide-react';
+import { useFirestore } from '../hooks/useFirestore';
+import { COLLECTIONS } from '../lib/firebase';
+import { Customer, Product, Task } from '../types';
 import DashboardCard from '../components/DashboardCard';
 import PieChart from '../components/PieChart';
-import { customers, products, tasks } from '../data/mockData';
 
 const Dashboard = () => {
+  const { data: customers, loading: customersLoading } = useFirestore<Customer>({
+    collectionName: COLLECTIONS.CUSTOMERS
+  });
+
+  const { data: products, loading: productsLoading } = useFirestore<Product>({
+    collectionName: COLLECTIONS.PRODUCTS
+  });
+
+  const { data: tasks, loading: tasksLoading } = useFirestore<Task>({
+    collectionName: COLLECTIONS.TASKS
+  });
+
+  if (customersLoading || productsLoading || tasksLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
+      </div>
+    );
+  }
+
   // Calculate total revenue (price * stock for each product)
   const totalRevenue = products.reduce((sum, product) => sum + (product.price * product.stock), 0);
   
@@ -48,6 +70,16 @@ const Dashboard = () => {
     { label: 'Inactive', value: customers.filter(c => c.status === 'inactive').length, color: '#6b7280' }
   ];
 
+  // Sort customers by createdAt timestamp in descending order
+  const recentCustomers = [...customers]
+    .sort((a: any, b: any) => b.createdAt?.seconds - a.createdAt?.seconds)
+    .slice(0, 5);
+
+  // Sort tasks by createdAt timestamp in descending order
+  const recentTasks = [...tasks]
+    .sort((a: any, b: any) => b.createdAt?.seconds - a.createdAt?.seconds)
+    .slice(0, 5);
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
@@ -78,7 +110,7 @@ const Dashboard = () => {
         <div className="card p-6">
           <h2 className="text-xl font-semibold mb-6">Recent Customers</h2>
           <div className="space-y-4">
-            {customers.slice(0, 5).map((customer) => (
+            {recentCustomers.map((customer) => (
               <div key={customer.id} className="flex items-center justify-between p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
                 <div>
                   <p className="font-medium">{customer.name}</p>
@@ -97,7 +129,7 @@ const Dashboard = () => {
         <div className="card p-6">
           <h2 className="text-xl font-semibold mb-6">Recent Tasks</h2>
           <div className="space-y-4">
-            {tasks.slice(0, 5).map((task) => (
+            {recentTasks.map((task) => (
               <div key={task.id} className="flex items-center justify-between p-4 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
                 <div>
                   <p className="font-medium">{task.title}</p>

@@ -1,5 +1,7 @@
 import React, { useState, memo } from 'react';
-import { customers } from '../data/mockData';
+import { useFirestore } from '../hooks/useFirestore';
+import { COLLECTIONS } from '../lib/firebase';
+import { Customer } from '../types';
 import { Phone, Mail, Building, Plus, Eye, Pencil, Trash2, X } from 'lucide-react';
 
 interface CustomerFormData {
@@ -8,29 +10,28 @@ interface CustomerFormData {
   phone: string;
   company: string;
   status: 'active' | 'inactive';
+  lastContact: string;
 }
 
-const initialFormData: CustomerFormData = {
-  name: '',
-  email: '',
-  phone: '',
-  company: '',
-  status: 'active'
-};
-
-// Memoized form component
 const CustomerForm = memo(({
   onSubmit,
   onCancel,
-  initialData = initialFormData,
-  isAdd = true
+  initialData
 }: {
   onSubmit: (data: CustomerFormData) => void;
   onCancel: () => void;
   initialData?: CustomerFormData;
-  isAdd?: boolean;
 }) => {
-  const [formData, setFormData] = useState<CustomerFormData>(initialData);
+  const [formData, setFormData] = useState<CustomerFormData>(
+    initialData || {
+      name: '',
+      email: '',
+      phone: '',
+      company: '',
+      status: 'active',
+      lastContact: new Date().toISOString().split('T')[0]
+    }
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,19 +95,29 @@ const CustomerForm = memo(({
           <option value="inactive">Inactive</option>
         </select>
       </div>
-      <div className="flex justify-end space-x-3 pt-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Last Contact</label>
+        <input
+          type="date"
+          value={formData.lastContact}
+          onChange={e => handleChange('lastContact', e.target.value)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+          required
+        />
+      </div>
+      <div className="flex justify-end gap-4 pt-4">
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="btn-primary"
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
         >
-          {isAdd ? 'Add Customer' : 'Save Changes'}
+          Save
         </button>
       </div>
     </form>
@@ -115,247 +126,277 @@ const CustomerForm = memo(({
 
 CustomerForm.displayName = 'CustomerForm';
 
-// Memoized customer row component
-const CustomerRow = memo(({
-  customer,
-  onView,
-  onEdit,
-  onDelete
-}: {
-  customer: typeof customers[0];
-  onView: (customer: typeof customers[0]) => void;
-  onEdit: (customer: typeof customers[0]) => void;
-  onDelete: (customer: typeof customers[0]) => void;
-}) => (
-  <tr className="hover:bg-gray-50 transition-colors">
-    <td className="px-6 py-4">
-      <div className="font-medium">{customer.name}</div>
-    </td>
-    <td className="px-6 py-4">
-      <div className="flex flex-col space-y-1">
-        <div className="flex items-center text-sm text-gray-600">
-          <Mail size={16} className="mr-2 text-gray-400" />
-          {customer.email}
-        </div>
-        <div className="flex items-center text-sm text-gray-600">
-          <Phone size={16} className="mr-2 text-gray-400" />
-          {customer.phone}
-        </div>
-      </div>
-    </td>
-    <td className="px-6 py-4">
-      <div className="flex items-center text-sm">
-        <Building size={16} className="mr-2 text-gray-400" />
-        {customer.company}
-      </div>
-    </td>
-    <td className="px-6 py-4">
-      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${
-        customer.status === 'active'
-          ? 'bg-emerald-100 text-emerald-800'
-          : 'bg-gray-100 text-gray-800'
-      }`}>
-        {customer.status}
-      </span>
-    </td>
-    <td className="px-6 py-4 text-sm text-gray-600">
-      {customer.lastContact}
-    </td>
-    <td className="px-6 py-4 text-right space-x-2">
-      <button 
-        onClick={() => onView(customer)}
-        className="btn-icon text-blue-600 hover:bg-blue-50" 
-        title="View"
-      >
-        <Eye size={18} />
-      </button>
-      <button 
-        onClick={() => onEdit(customer)}
-        className="btn-icon text-amber-600 hover:bg-amber-50" 
-        title="Edit"
-      >
-        <Pencil size={18} />
-      </button>
-      <button 
-        onClick={() => onDelete(customer)}
-        className="btn-icon text-red-600 hover:bg-red-50" 
-        title="Delete"
-      >
-        <Trash2 size={18} />
-      </button>
-    </td>
-  </tr>
-));
-
-CustomerRow.displayName = 'CustomerRow';
-
 const Customers = () => {
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof customers[0] | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
+  const { data: customers, loading, error, add, update, remove } = useFirestore<Customer>({
+    collectionName: COLLECTIONS.CUSTOMERS
+  });
+
   const handleAdd = () => {
     setIsAddOpen(true);
   };
 
-  const handleView = (customer: typeof customers[0]) => {
+  const handleView = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsViewOpen(true);
   };
 
-  const handleEdit = (customer: typeof customers[0]) => {
+  const handleEdit = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsEditOpen(true);
   };
 
-  const handleDelete = (customer: typeof customers[0]) => {
+  const handleDelete = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleSubmit = (formData: CustomerFormData) => {
-    if (isAddOpen) {
-      console.log('Adding new customer:', formData);
-      setIsAddOpen(false);
-    } else if (isEditOpen && selectedCustomer) {
-      console.log('Updating customer:', selectedCustomer.id, formData);
-      setIsEditOpen(false);
+  const handleSubmit = async (formData: CustomerFormData) => {
+    try {
+      if (isAddOpen) {
+        await add(formData);
+        setIsAddOpen(false);
+      } else if (isEditOpen && selectedCustomer) {
+        await update(selectedCustomer.id, formData);
+        setIsEditOpen(false);
+      }
+      setSelectedCustomer(null);
+    } catch (error) {
+      console.error('Error handling customer:', error);
+      // Handle error appropriately
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedCustomer) {
-      console.log('Deleting customer:', selectedCustomer.id);
-      setIsDeleteConfirmOpen(false);
-      setSelectedCustomer(null);
+      try {
+        await remove(selectedCustomer.id);
+        setIsDeleteConfirmOpen(false);
+        setSelectedCustomer(null);
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        // Handle error appropriately
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+          Error loading customers: {error.message}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Customers</h1>
-        <button 
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+        <button
           onClick={handleAdd}
-          className="btn-primary flex items-center gap-2"
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
         >
-          <Plus size={20} />
+          <Plus className="w-4 h-4" />
           Add Customer
         </button>
       </div>
 
-      <div className="card">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Contact
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Company
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Contact
-                </th>
-                <th className="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Name
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Contact
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Company
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Last Contact
+              </th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {customers.map((customer) => (
+              <tr key={customer.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm font-medium text-gray-900">{customer.name}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <Phone className="w-4 h-4" />
+                      {customer.phone}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <Mail className="w-4 h-4" />
+                      {customer.email}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Building className="w-4 h-4" />
+                    {customer.company}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    customer.status === 'active'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {customer.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {customer.lastContact}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => handleView(customer)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                      title="View details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleEdit(customer)}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                      title="Edit customer"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(customer)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                      title="Delete customer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {customers.map((customer) => (
-                <CustomerRow
-                  key={customer.id}
-                  customer={customer}
-                  onView={handleView}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* View Modal */}
-      {isViewOpen && selectedCustomer && (
+      {/* Add Modal */}
+      {isAddOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Customer Details</h2>
+              <h2 className="text-xl font-bold">Add Customer</h2>
               <button
-                onClick={() => setIsViewOpen(false)}
-                className="btn-icon text-gray-500"
+                onClick={() => setIsAddOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <X size={20} />
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p className="text-gray-900">{selectedCustomer.name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="text-gray-900">{selectedCustomer.email}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Phone</label>
-                <p className="text-gray-900">{selectedCustomer.phone}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Company</label>
-                <p className="text-gray-900">{selectedCustomer.company}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Status</label>
-                <p className="text-gray-900">{selectedCustomer.status}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Last Contact</label>
-                <p className="text-gray-900">{selectedCustomer.lastContact}</p>
-              </div>
-            </div>
+            <CustomerForm 
+              onSubmit={handleSubmit}
+              onCancel={() => setIsAddOpen(false)}
+            />
           </div>
         </div>
       )}
 
-      {/* Add/Edit Modal */}
-      {(isAddOpen || isEditOpen) && (
+      {/* Edit Modal */}
+      {isEditOpen && selectedCustomer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-                {isAddOpen ? 'Add Customer' : 'Edit Customer'}
-              </h2>
+              <h2 className="text-xl font-bold">Edit Customer</h2>
               <button
-                onClick={() => {
-                  setIsAddOpen(false);
-                  setIsEditOpen(false);
-                }}
-                className="btn-icon text-gray-500"
+                onClick={() => setIsEditOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <X size={20} />
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <CustomerForm
+            <CustomerForm 
+              initialData={selectedCustomer}
               onSubmit={handleSubmit}
-              onCancel={() => {
-                setIsAddOpen(false);
-                setIsEditOpen(false);
-              }}
-              initialData={selectedCustomer || initialFormData}
-              isAdd={isAddOpen}
+              onCancel={() => setIsEditOpen(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {isViewOpen && selectedCustomer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Customer Details</h2>
+              <button
+                onClick={() => setIsViewOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <div className="mt-1 text-gray-900">{selectedCustomer.name}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Email</label>
+                <div className="mt-1 text-gray-900">{selectedCustomer.email}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Phone</label>
+                <div className="mt-1 text-gray-900">{selectedCustomer.phone}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Company</label>
+                <div className="mt-1 text-gray-900">{selectedCustomer.company}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Status</label>
+                <div className="mt-1">
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                    selectedCustomer.status === 'active'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {selectedCustomer.status}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Last Contact</label>
+                <div className="mt-1 text-gray-900">{selectedCustomer.lastContact}</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -363,29 +404,29 @@ const Customers = () => {
       {/* Delete Confirmation Modal */}
       {isDeleteConfirmOpen && selectedCustomer && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Confirm Delete</h2>
               <button
                 onClick={() => setIsDeleteConfirmOpen(false)}
-                className="btn-icon text-gray-500"
+                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <X size={20} />
+                <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-gray-600 mb-6">
+            <p className="mb-4">
               Are you sure you want to delete {selectedCustomer.name}? This action cannot be undone.
             </p>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-4">
               <button
                 onClick={() => setIsDeleteConfirmOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
               >
                 Delete
               </button>

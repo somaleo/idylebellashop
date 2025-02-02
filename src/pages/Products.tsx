@@ -1,8 +1,10 @@
 import React, { useState, memo } from 'react';
-import { products } from '../data/mockData';
+import { useFirestore } from '../hooks/useFirestore';
+import { COLLECTIONS } from '../lib/firebase';
+import { Product } from '../types';
 import { Package, Plus, Eye, Pencil, Trash2, X, Tags, Check, LayoutGrid, List } from 'lucide-react';
 
-const defaultCategories = [
+const DEFAULT_CATEGORIES = [
   'Software',
   'Hardware',
   'Services',
@@ -74,7 +76,7 @@ const ProductForm = memo(({
           type="number"
           step="0.01"
           min="0"
-          value={formData.price.toString()}
+          value={formData.price}
           onChange={e => handleChange('price', parseFloat(e.target.value) || 0)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
@@ -99,7 +101,7 @@ const ProductForm = memo(({
         <input
           type="number"
           min="0"
-          value={formData.stock.toString()}
+          value={formData.stock}
           onChange={e => handleChange('stock', parseInt(e.target.value) || 0)}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           required
@@ -193,64 +195,62 @@ const CategoryForm = memo(({
         </div>
       </form>
 
-      <div className="overflow-y-auto flex-1 pr-2 -mr-2">
-        <div className="space-y-2">
-          {categories.map((category) => (
-            <div
-              key={category}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              {editingCategory === category ? (
-                <div className="flex-1 flex items-center gap-2 pr-2">
-                  <input
-                    type="text"
-                    value={editedCategoryName}
-                    onChange={(e) => setEditedCategoryName(e.target.value)}
-                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-                    autoFocus
-                  />
+      <div className="space-y-2">
+        {categories.map((category) => (
+          <div
+            key={category}
+            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            {editingCategory === category ? (
+              <div className="flex-1 flex items-center gap-2 pr-2">
+                <input
+                  type="text"
+                  value={editedCategoryName}
+                  onChange={(e) => setEditedCategoryName(e.target.value)}
+                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  autoFocus
+                />
+                <button
+                  onClick={() => handleSave(category)}
+                  className="text-emerald-600 hover:text-emerald-700"
+                  title="Save"
+                >
+                  <Check size={18} />
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setEditedCategoryName('');
+                  }}
+                  className="text-gray-600 hover:text-gray-700"
+                  title="Cancel"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            ) : (
+              <>
+                <span>{category}</span>
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={() => handleSave(category)}
-                    className="text-emerald-600 hover:text-emerald-700"
-                    title="Save"
+                    onClick={() => handleEdit(category)}
+                    className="text-amber-600 hover:text-amber-700"
+                    title="Edit"
                   >
-                    <Check size={18} />
+                    <Pencil size={18} />
                   </button>
                   <button
-                    onClick={() => {
-                      setEditingCategory(null);
-                      setEditedCategoryName('');
-                    }}
-                    className="text-gray-600 hover:text-gray-700"
-                    title="Cancel"
+                    onClick={() => onDeleteCategory(category)}
+                    className="text-red-600 hover:text-red-700"
+                    title="Delete"
                   >
-                    <X size={18} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
-              ) : (
-                <>
-                  <span>{category}</span>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleEdit(category)}
-                      className="text-amber-600 hover:text-amber-700"
-                      title="Edit"
-                    >
-                      <Pencil size={18} />
-                    </button>
-                    <button
-                      onClick={() => onDeleteCategory(category)}
-                      className="text-red-600 hover:text-red-700"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ))}
-        </div>
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </>
   );
@@ -265,10 +265,10 @@ const ProductCard = memo(({
   onEdit,
   onDelete
 }: {
-  product: typeof products[0];
-  onView: (product: typeof products[0]) => void;
-  onEdit: (product: typeof products[0]) => void;
-  onDelete: (product: typeof products[0]) => void;
+  product: Product;
+  onView: (product: Product) => void;
+  onEdit: (product: Product) => void;
+  onDelete: (product: Product) => void;
 }) => (
   <div className="card p-6 flex flex-col">
     <div className="flex items-center justify-between mb-4">
@@ -323,49 +323,64 @@ const ProductCard = memo(({
 ProductCard.displayName = 'ProductCard';
 
 const Products = () => {
-  const [selectedProduct, setSelectedProduct] = useState<typeof products[0] | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [categories, setCategories] = useState(defaultCategories);
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const { data: products, loading, error, add, update, remove } = useFirestore<Product>({
+    collectionName: COLLECTIONS.PRODUCTS
+  });
 
   const handleAdd = () => {
     setIsAddOpen(true);
   };
 
-  const handleView = (product: typeof products[0]) => {
+  const handleView = (product: Product) => {
     setSelectedProduct(product);
     setIsViewOpen(true);
   };
 
-  const handleEdit = (product: typeof products[0]) => {
+  const handleEdit = (product: Product) => {
     setSelectedProduct(product);
     setIsEditOpen(true);
   };
 
-  const handleDelete = (product: typeof products[0]) => {
+  const handleDelete = (product: Product) => {
     setSelectedProduct(product);
     setIsDeleteConfirmOpen(true);
   };
 
-  const handleSubmit = (formData: ProductFormData) => {
-    if (isAddOpen) {
-      console.log('Adding new product:', formData);
-      setIsAddOpen(false);
-    } else if (isEditOpen && selectedProduct) {
-      console.log('Updating product:', selectedProduct.id, formData);
-      setIsEditOpen(false);
+  const handleSubmit = async (formData: ProductFormData) => {
+    try {
+      if (isAddOpen) {
+        await add(formData);
+        setIsAddOpen(false);
+      } else if (isEditOpen && selectedProduct) {
+        await update(selectedProduct.id, formData);
+        setIsEditOpen(false);
+      }
+      setSelectedProduct(null);
+    } catch (error) {
+      console.error('Error handling product:', error);
+      // Handle error appropriately
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (selectedProduct) {
-      console.log('Deleting product:', selectedProduct.id);
-      setIsDeleteConfirmOpen(false);
-      setSelectedProduct(null);
+      try {
+        await remove(selectedProduct.id);
+        setIsDeleteConfirmOpen(false);
+        setSelectedProduct(null);
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        // Handle error appropriately
+      }
     }
   };
 
@@ -386,6 +401,24 @@ const Products = () => {
       ));
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg">
+          Error loading products: {error.message}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -530,7 +563,7 @@ const Products = () => {
       {/* Category Management Modal */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Manage Categories</h2>
               <button
@@ -540,54 +573,12 @@ const Products = () => {
                 <X size={20} />
               </button>
             </div>
-            
             <CategoryForm
               onSubmit={handleAddCategory}
               categories={categories}
               onDeleteCategory={handleDeleteCategory}
               onEditCategory={handleEditCategory}
             />
-          </div>
-        </div>
-      )}
-
-      {/* View Modal */}
-      {isViewOpen && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Product Details</h2>
-              <button
-                onClick={() => setIsViewOpen(false)}
-                className="btn-icon text-gray-500"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500">Name</label>
-                <p className="text-gray-900">{selectedProduct.name}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Price</label>
-                <p className="text-gray-900">
-                  ${selectedProduct.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Category</label>
-                <p className="text-gray-900">{selectedProduct.category}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Stock</label>
-                <p className="text-gray-900">{selectedProduct.stock}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Description</label>
-                <p className="text-gray-900">{selectedProduct.description}</p>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -620,6 +611,47 @@ const Products = () => {
               isAdd={isAddOpen}
               categories={categories}
             />
+          </div>
+        </div>
+      )}
+
+      {/* View Modal */}
+      {isViewOpen && selectedProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Product Details</h2>
+              <button
+                onClick={() => setIsViewOpen(false)}
+                className="btn-icon text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Name</label>
+                <p className="text-gray-900">{selectedProduct.name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Price</label>
+                <p className="text-gray-900">
+                  ${selectedProduct.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Category</label>
+                <p className="text-gray-900">{selectedProduct.category}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Stock</label>
+                <p className="text-gray-900">{selectedProduct.stock}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Description</label>
+                <p className="text-gray-900">{selectedProduct.description}</p>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -1,13 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
-import { FirestoreProvider } from './contexts/FirestoreContext';
 import './index.css';
+
+// Initialize Firebase before rendering
+import './lib/firebase';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <FirestoreProvider>
-      <App />
-    </FirestoreProvider>
+    <App />
   </StrictMode>
 );
