@@ -12,15 +12,15 @@ const FirestoreContext = createContext<FirestoreContextType | undefined>(undefin
 
 export function FirestoreProvider({ children }: { children: React.ReactNode }) {
   const customersRef = () => {
-    return createQueryConstraints('createdAt', 'desc');
+    return createQueryConstraints();
   };
 
   const productsRef = () => {
-    return createQueryConstraints('createdAt', 'desc');
+    return createQueryConstraints();
   };
 
   const tasksRef = () => {
-    return createQueryConstraints('createdAt', 'desc');
+    return createQueryConstraints();
   };
 
   return (
