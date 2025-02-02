@@ -2,9 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   collection,
   query,
-  where,
-  orderBy,
-  limit,
   getDocs,
   addDoc,
   updateDoc,
@@ -12,9 +9,11 @@ import {
   doc,
   DocumentData,
   QueryConstraint,
-  Timestamp
+  Timestamp,
+  where
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UseFirestoreOptions {
   collectionName: string;
@@ -30,15 +29,18 @@ export function useFirestore<T extends DocumentData>({
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) return;
+
       try {
         setLoading(true);
-        const constraints: QueryConstraint[] = [...queries];
-        if (queryLimit) {
-          constraints.push(limit(queryLimit));
-        }
+        const constraints: QueryConstraint[] = [
+          where('userId', '==', user.id),
+          ...queries
+        ];
 
         const q = query(collection(db, collectionName), ...constraints);
         const querySnapshot = await getDocs(q);
@@ -59,12 +61,15 @@ export function useFirestore<T extends DocumentData>({
     };
 
     fetchData();
-  }, [collectionName, queries, queryLimit]);
+  }, [collectionName, queries, queryLimit, user]);
 
   const add = async (data: Omit<T, 'id'>) => {
+    if (!user) throw new Error('User must be authenticated');
+
     try {
       const docRef = await addDoc(collection(db, collectionName), {
         ...data,
+        userId: user.id,
         createdAt: Timestamp.now()
       });
       return docRef.id;
@@ -75,6 +80,8 @@ export function useFirestore<T extends DocumentData>({
   };
 
   const update = async (id: string, data: Partial<T>) => {
+    if (!user) throw new Error('User must be authenticated');
+
     try {
       const docRef = doc(db, collectionName, id);
       await updateDoc(docRef, {
@@ -88,6 +95,8 @@ export function useFirestore<T extends DocumentData>({
   };
 
   const remove = async (id: string) => {
+    if (!user) throw new Error('User must be authenticated');
+
     try {
       const docRef = doc(db, collectionName, id);
       await deleteDoc(docRef);

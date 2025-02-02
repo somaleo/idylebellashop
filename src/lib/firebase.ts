@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, collection, query, where, orderBy, QueryConstraint } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getAnalytics } from 'firebase/analytics';
 
@@ -25,3 +25,22 @@ export const COLLECTIONS = {
   PRODUCTS: 'products',
   TASKS: 'tasks'
 } as const;
+
+// Helper functions for common queries
+export const getCollectionRef = (collectionName: string) => collection(db, collectionName);
+
+export const createQueryConstraints = (
+  orderByField: string = 'createdAt',
+  orderDirection: 'asc' | 'desc' = 'desc',
+  whereConditions?: { field: string; operator: string; value: any }[]
+): QueryConstraint[] => {
+  const constraints: QueryConstraint[] = [orderBy(orderByField, orderDirection)];
+  
+  if (whereConditions) {
+    whereConditions.forEach(condition => {
+      constraints.push(where(condition.field, condition.operator as any, condition.value));
+    });
+  }
+  
+  return constraints;
+};
