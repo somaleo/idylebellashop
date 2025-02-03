@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { User, KeyRound, Save, X, LogOut } from 'lucide-react';
+import { User, KeyRound, Save, LogOut } from 'lucide-react';
 
 const Profile = () => {
   const navigate = useNavigate();

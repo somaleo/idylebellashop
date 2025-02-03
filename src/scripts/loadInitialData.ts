@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, Timestamp, getDocs, query, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzdQE_-COOYXUx8hHn4j0Ew1nOR1uODz8",
@@ -127,17 +127,18 @@ const checkIfDataExists = async (collectionName: string): Promise<boolean> => {
 
 const loadCollectionData = async (collectionName: string, data: any[]) => {
   console.log(`Loading ${collectionName}...`);
-  const dataExists = await checkIfDataExists(collectionName);
   
-  if (dataExists) {
-    console.log(`${collectionName} collection already has data, skipping...`);
-    return;
-  }
+  try {
+    const dataExists = await checkIfDataExists(collectionName);
+    
+    if (dataExists) {
+      console.log(`${collectionName} collection already has data, skipping...`);
+      return;
+    }
 
-  const collectionRef = collection(db, collectionName);
-  
-  for (const item of data) {
-    try {
+    const collectionRef = collection(db, collectionName);
+    
+    for (const item of data) {
       if (collectionName === 'users') {
         // For users, use email as the document ID
         const docRef = doc(db, collectionName, item.email);
@@ -145,13 +146,14 @@ const loadCollectionData = async (collectionName: string, data: any[]) => {
       } else {
         await addDoc(collectionRef, item);
       }
-    } catch (error) {
-      console.error(`Error adding document to ${collectionName}:`, error);
-      throw error;
+      console.log(`Added document to ${collectionName}`);
     }
+    
+    console.log(`${collectionName} loaded successfully`);
+  } catch (error) {
+    console.error(`Error loading ${collectionName}:`, error);
+    throw error;
   }
-  
-  console.log(`${collectionName} loaded successfully`);
 };
 
 const loadInitialData = async () => {

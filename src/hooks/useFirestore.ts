@@ -10,9 +10,10 @@ import {
   DocumentData,
   QueryConstraint,
   Timestamp,
-  where
+  where,
+  orderBy
 } from 'firebase/firestore';
-import { db, DEFAULT_USER_ID } from '../lib/firebase';
+import { db } from '../lib/firebase';
 
 interface UseFirestoreOptions {
   collectionName: string;
@@ -22,7 +23,6 @@ interface UseFirestoreOptions {
 
 interface BaseDocument {
   id: string;
-  userId: string;
   createdAt: Timestamp;
 }
 
@@ -43,13 +43,14 @@ export function useFirestore<T extends DocumentData>({
         setLoading(true);
         setError(null);
         
-        const constraints: QueryConstraint[] = [
-          where('userId', '==', DEFAULT_USER_ID),
+        // Create base query with default ordering
+        const baseQuery = query(
+          collection(db, collectionName),
+          orderBy('createdAt', 'desc'),
           ...queries
-        ];
+        );
         
-        const q = query(collection(db, collectionName), ...constraints);
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await getDocs(baseQuery);
         
         if (!mounted) return;
 
@@ -84,7 +85,6 @@ export function useFirestore<T extends DocumentData>({
       const timestamp = Timestamp.now();
       const docData = {
         ...data,
-        userId: DEFAULT_USER_ID,
         createdAt: timestamp
       };
 

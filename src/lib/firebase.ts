@@ -16,11 +16,9 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Default user ID for demo purposes
-export const DEFAULT_USER_ID = 'demo';
-
 // Collection references
 export const COLLECTIONS = {
+  USERS: 'users',
   CUSTOMERS: 'customers',
   PRODUCTS: 'products',
   TASKS: 'tasks'
@@ -29,9 +27,14 @@ export const COLLECTIONS = {
 // Helper functions for common queries
 export const getCollectionRef = (collectionName: string) => collection(db, collectionName);
 
-export const createQueryConstraints = (): QueryConstraint[] => {
-  return [
-    where('userId', '==', DEFAULT_USER_ID),
-    orderBy('createdAt', 'desc')
-  ];
+export const createQueryConstraints = (collectionName?: string): QueryConstraint[] => {
+  const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')];
+  
+  // Add collection-specific constraints
+  if (collectionName === COLLECTIONS.USERS) {
+    // No additional constraints for users collection
+    return constraints;
+  }
+  
+  return constraints;
 };

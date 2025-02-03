@@ -1,5 +1,5 @@
-const { initializeApp } = require('firebase/app');
-const { getFirestore, doc, setDoc } = require('firebase/firestore');
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzdQE_-COOYXUx8hHn4j0Ew1nOR1uODz8",
@@ -13,7 +13,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-async function setUserAsAdmin(userId) {
+const setUserAsAdmin = async (userId) => {
   if (!userId) {
     console.error('Please provide a user ID');
     console.log('Usage: npm run set-admin <userId>');
@@ -29,12 +29,14 @@ async function setUserAsAdmin(userId) {
     }, { merge: true });
 
     console.log(`Successfully set user ${userId} as admin`);
-    process.exit(0);
+    
+    // Force exit since Firebase keeps the connection open
+    setTimeout(() => process.exit(0), 1000);
   } catch (error) {
     console.error('Error setting admin role:', error);
     process.exit(1);
   }
-}
+};
 
 // Get userId from command line argument
 const userId = process.argv[2];

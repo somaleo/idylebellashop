@@ -22,7 +22,7 @@ const Login = () => {
 
     try {
       if (isSignUp) {
-        await signUp(email, password, name);
+        await signUp(email, password);
         setError('Please check your email to verify your account');
       } else {
         await signIn(email, password);

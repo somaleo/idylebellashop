@@ -7,19 +7,24 @@ import {
   updatePassword as firebaseUpdatePassword,
   sendEmailVerification,
   User as FirebaseUser,
-  onAuthStateChanged
+  onAuthStateChanged,
+  updateProfile as firebaseUpdateProfile
 } from 'firebase/auth';
-import { auth } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+import { User, UserRole } from '../types';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName?: string, role?: UserRole) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   sendVerificationEmail: () => Promise<void>;
+  updateProfile: (displayName: string) => Promise<void>;
+  updateUserRole: (userId: string, role: UserRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,7 +32,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const convertFirebaseUser = (firebaseUser: FirebaseUser): User => ({
   id: firebaseUser.uid,
   email: firebaseUser.email,
-  lastLogin: new Date(firebaseUser.metadata.lastSignInTime || Date.now())
+  displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Unknown User',
+  role: 'customer' as UserRole,
+  lastLogin: new Date(firebaseUser.metadata.lastSignInTime || Date.now()),
+  createdAt: new Date(firebaseUser.metadata.creationTime || Date.now()),
+  active: true
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -55,9 +64,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, displayName?: string, role: UserRole = 'customer') => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      
+      if (displayName) {
+        await firebaseUpdateProfile(userCredential.user, { displayName });
+      }
+      
+      // Create user document in Firestore with role
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        email,
+        displayName: displayName || email.split('@')[0],
+        role,
+        createdAt: new Date(),
+        lastLogin: new Date(),
+        active: true
+      });
+      
       await sendEmailVerification(userCredential.user);
     } catch (error) {
       console.error('Sign up error:', error);
@@ -98,6 +122,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateProfile = async (displayName: string) => {
+    if (!auth.currentUser) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await firebaseUpdateProfile(auth.currentUser, { displayName });
+      await setDoc(doc(db, 'users', auth.currentUser.uid), { displayName }, { merge: true });
+      setUser(prev => prev ? { ...prev, displayName } : null);
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
+    }
+  };
+
+  const updateUserRole = async (userId: string, role: UserRole) => {
+    try {
+      await setDoc(doc(db, 'users', userId), { role }, { merge: true });
+    } catch (error) {
+      console.error('Update user role error:', error);
+      throw error;
+    }
+  };
+
   const sendVerificationEmail = async () => {
     if (!auth.currentUser) {
       throw new Error('Not authenticated');
@@ -122,6 +170,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         updatePassword,
         sendVerificationEmail,
+        updateProfile,
+        updateUserRole,
       }}
     >
       {children}
