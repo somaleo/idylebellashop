@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, Timestamp, getDocs, query, doc, setDoc, connectFirestoreEmulator } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBzdQE_-COOYXUx8hHn4j0Ew1nOR1uODz8",
@@ -14,9 +14,11 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Sample data creation function
 const createSampleData = () => ({
   users: [
     {
+      id: 'admin@example.com',  // Use email as ID for easier auth integration
       email: 'admin@example.com',
       displayName: 'Admin User',
       role: 'admin',
@@ -25,6 +27,7 @@ const createSampleData = () => ({
       active: true
     },
     {
+      id: 'manager@example.com',
       email: 'manager@example.com',
       displayName: 'Manager User',
       role: 'manager',
@@ -51,15 +54,6 @@ const createSampleData = () => ({
       status: 'active',
       lastContact: '2024-03-08',
       createdAt: Timestamp.now()
-    },
-    {
-      name: 'Michael Brown',
-      email: 'michael@example.com',
-      phone: '(555) 456-7890',
-      company: 'Old Corp',
-      status: 'inactive',
-      lastContact: '2024-01-15',
-      createdAt: Timestamp.now()
     }
   ],
   products: [
@@ -68,7 +62,7 @@ const createSampleData = () => ({
       price: 299.99,
       category: 'Software',
       stock: 50,
-      description: 'Enterprise-grade software solution with advanced features',
+      description: 'Enterprise-grade software solution',
       createdAt: Timestamp.now()
     },
     {
@@ -76,22 +70,14 @@ const createSampleData = () => ({
       price: 99.99,
       category: 'Services',
       stock: 100,
-      description: '1TB cloud storage subscription with backup features',
-      createdAt: Timestamp.now()
-    },
-    {
-      name: 'Security Suite',
-      price: 199.99,
-      category: 'Software',
-      stock: 75,
-      description: 'Comprehensive security solution for businesses',
+      description: '1TB cloud storage subscription',
       createdAt: Timestamp.now()
     }
   ],
   tasks: [
     {
       title: 'Follow up with Tech Corp',
-      description: 'Schedule demo for new software package and discuss implementation timeline',
+      description: 'Schedule demo for new software',
       status: 'pending',
       dueDate: '2024-03-15',
       assignedTo: 'John Doe',
@@ -100,80 +86,81 @@ const createSampleData = () => ({
     },
     {
       title: 'Update product catalog',
-      description: 'Add new cloud services and update pricing for Q2',
+      description: 'Add new cloud services',
       status: 'in-progress',
       dueDate: '2024-03-20',
       assignedTo: 'Jane Smith',
       priority: 'medium',
       createdAt: Timestamp.now()
-    },
-    {
-      title: 'Client presentation',
-      description: 'Prepare slides for the quarterly review meeting with Design Co',
-      status: 'completed',
-      dueDate: '2024-03-12',
-      assignedTo: 'Mike Johnson',
-      priority: 'high',
-      createdAt: Timestamp.now()
     }
   ]
 });
 
-const checkIfDataExists = async (collectionName: string): Promise<boolean> => {
-  const q = query(collection(db, collectionName));
-  const snapshot = await getDocs(q);
-  return !snapshot.empty;
+const checkIfDataExists = async (collectionName) => {
+  try {
+    const q = query(collection(db, collectionName));
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
+  } catch (error) {
+    console.error(`Error checking ${collectionName}:`, error);
+    return false;
+  }
 };
 
-const loadCollectionData = async (collectionName: string, data: any[]) => {
+const loadCollectionData = async (collectionName, data) => {
   console.log(`Loading ${collectionName}...`);
-  const dataExists = await checkIfDataExists(collectionName);
   
-  if (dataExists) {
-    console.log(`${collectionName} collection already has data, skipping...`);
-    return;
-  }
-
-  const collectionRef = collection(db, collectionName);
-  
-  for (const item of data) {
-    try {
-      if (collectionName === 'users') {
-        // For users, use email as the document ID
-        const docRef = doc(db, collectionName, item.email);
-        await setDoc(docRef, item);
-      } else {
-        await addDoc(collectionRef, item);
-      }
-    } catch (error) {
-      console.error(`Error adding document to ${collectionName}:`, error);
-      throw error;
+  try {
+    const dataExists = await checkIfDataExists(collectionName);
+    
+    if (dataExists) {
+      console.log(`${collectionName} collection already has data, skipping...`);
+      return;
     }
+
+    for (const item of data) {
+      if (collectionName === 'users') {
+        // For users, use email as document ID
+        await setDoc(doc(db, collectionName, item.id), item);
+      } else {
+        await addDoc(collection(db, collectionName), item);
+      }
+      console.log(`Added document to ${collectionName}`);
+    }
+    
+    console.log(`${collectionName} loaded successfully`);
+  } catch (error) {
+    console.error(`Error loading ${collectionName}:`, error);
+    throw error;
   }
-  
-  console.log(`${collectionName} loaded successfully`);
 };
 
 const loadInitialData = async () => {
   try {
     console.log('Starting data load...');
-    
     const sampleData = createSampleData();
     
-    // Load all collections
-    await Promise.all([
-      loadCollectionData('users', sampleData.users),
-      loadCollectionData('customers', sampleData.customers),
-      loadCollectionData('products', sampleData.products),
-      loadCollectionData('tasks', sampleData.tasks)
-    ]);
+    // Load collections sequentially
+    await loadCollectionData('users', sampleData.users);
+    await loadCollectionData('customers', sampleData.customers);
+    await loadCollectionData('products', sampleData.products);
+    await loadCollectionData('tasks', sampleData.tasks);
 
     console.log('All data loaded successfully!');
-    process.exit(0);
+    return true;
   } catch (error) {
     console.error('Error loading data:', error);
-    process.exit(1);
+    throw error;
   }
 };
 
-loadInitialData();
+// Execute and handle completion
+loadInitialData()
+  .then(() => {
+    console.log('Data loading completed successfully');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Failed to load data:', error);
+    process.exit(1);
+  });

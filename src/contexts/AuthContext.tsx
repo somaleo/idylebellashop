@@ -11,12 +11,6 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 
-interface User {
-  id: string;
-  email: string | null;
-  lastLogin: Date;
-}
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;

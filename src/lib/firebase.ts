@@ -3,12 +3,12 @@ import { getFirestore, collection, orderBy, where, QueryConstraint } from 'fireb
 import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyC0Jr9IlurH1-AfStLVaDFMv81IJTh2Btw",
-  authDomain: "crmboltapp.firebaseapp.com",
-  projectId: "crmboltapp",
-  storageBucket: "crmboltapp.appspot.com",
-  messagingSenderId: "596047524575",
-  appId: "1:596047524575:web:6830f4b95a42c13523ef6a"
+  apiKey: "AIzaSyBzdQE_-COOYXUx8hHn4j0Ew1nOR1uODz8",
+  authDomain: "mycrmapp-38a5d.firebaseapp.com",
+  projectId: "mycrmapp-38a5d",
+  storageBucket: "mycrmapp-38a5d.firebasestorage.app",
+  messagingSenderId: "211469404913",
+  appId: "1:211469404913:web:4128392d6c164394f8b750"
 };
 
 // Initialize Firebase

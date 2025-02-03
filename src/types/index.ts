@@ -26,3 +26,15 @@ export interface Task {
   assignedTo: string;
   priority: 'low' | 'medium' | 'high';
 }
+
+export type UserRole = 'admin' | 'manager' | 'customer';
+
+export interface User {
+  id: string;
+  email: string | null;
+  displayName: string;
+  role: UserRole;
+  lastLogin: Date;
+  createdAt: Date;
+  active: boolean;
+}
